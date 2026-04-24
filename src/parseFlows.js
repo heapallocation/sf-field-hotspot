@@ -6,7 +6,8 @@ const parser = new XMLParser({
     ignoreAttributes: false,
     isArray: (name) => [
         'filters', 'inputAssignments', 'recordUpdates', 'recordCreates', 'assignments', 'assignmentItems',
-        'conditions', 'decisions', 'rules', 'recordLookups', 'variables'
+        'conditions', 'decisions', 'rules', 'recordLookups', 'variables', 'transforms',
+        'transformValues', 'transformValueActions'
     ].includes(name)
 });
 
@@ -66,11 +67,13 @@ function buildVarObjectMap(flow) {
     for (const v of flow.variables || []) {
         if (v.name && v.dataType === 'SObject' && v.objectType) map[v.name] = v.objectType;
     }
+    for (const t of flow.transforms || []) {
+        if (t.name && t.dataType === 'SObject' && t.objectType) map[t.name] = t.objectType;
+    }
     return map;
 }
 
 function buildStagedFieldsMap(flow) {
-    // var -> Set of fields staged via assignments (after-save pattern)
     const map = {};
     for (const assignment of flow.assignments || []) {
         for (const item of assignment.assignmentItems || []) {
@@ -79,6 +82,14 @@ function buildStagedFieldsMap(flow) {
                 if (!map[parts.varName]) map[parts.varName] = new Set();
                 map[parts.varName].add(parts.field);
             }
+        }
+    }
+    for (const t of flow.transforms || []) {
+        if (!t.name) continue;
+        if (!map[t.name]) map[t.name] = new Set();
+        const actions = (t.transformValues || []).flatMap(tv => tv.transformValueActions || []);
+        for (const action of actions) {
+            if (action.outputFieldApiName) map[t.name].add(action.outputFieldApiName);
         }
     }
     return map;
@@ -214,7 +225,8 @@ function parseFlow(filePath) {
     const triggerType = start.triggerType;
 
     if (!triggerType || !triggerType.startsWith('Record')) {
-        return flow.processType === 'Flow' ? parseScreenFlow(filePath, flow) : null;
+        const invocable = ['Flow', 'AutoLaunchedFlow'].includes(flow.processType);
+        return invocable ? parseScreenFlow(filePath, flow) : null;
     }
 
     return {
