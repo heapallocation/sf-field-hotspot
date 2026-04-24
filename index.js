@@ -23,7 +23,11 @@ const riskCounts = ['critical', 'high', 'medium'].map(r => `${r}: ${fieldData.fi
 console.log(`Risk fields — ${riskCounts}`);
 
 const template = fs.readFileSync(path.join(__dirname, 'src/template.html'), 'utf8');
-const html = template.replace('__DATA__', JSON.stringify(fieldData));
+const html = template
+    .replace('__DATA__', JSON.stringify(fieldData))
+    .replace('__FILTERS_JS__', fs.readFileSync(path.join(__dirname, 'src/filters.js'), 'utf8'))
+    .replace('__SIDEBAR_JS__', fs.readFileSync(path.join(__dirname, 'src/sidebar.js'), 'utf8'))
+    .replace('__CHART_JS__', fs.readFileSync(path.join(__dirname, 'src/chart.js'), 'utf8'));
 
 const outPath = path.join(process.cwd(), 'hotspot-report.html');
 fs.writeFileSync(outPath, html);
