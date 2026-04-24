@@ -24,7 +24,7 @@ function findFlowFiles(repoPath) {
 }
 
 function splitRef(ref) {
-    const match = ref && ref.match(/^(\w+)\.(\w+)$/);
+    const match = ref && ref.match(/^([\w$]+)\.([\w]+)$/);
     return match ? { varName: match[1], field: match[2] } : null;
 }
 
@@ -103,7 +103,7 @@ function extractWrites(flow, start, triggerType) {
     for (const update of flow.recordUpdates || []) {
         const ref = update.inputReference || '';
         const isCurrentRecord = ref === '$Record';
-        const object = isCurrentRecord ? triggerObject : (varObjectMap[ref] || triggerObject);
+        const object = isCurrentRecord ? triggerObject : (varObjectMap[ref] || update.object || triggerObject);
 
         if (update.inputAssignments && update.inputAssignments.length > 0) {
             // Inline field assignments on the recordUpdate
