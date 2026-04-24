@@ -6,7 +6,7 @@ const parser = new XMLParser({
     ignoreAttributes: false,
     isArray: (name) => [
         'filters', 'inputAssignments', 'recordUpdates', 'recordCreates', 'assignments', 'assignmentItems',
-        'conditions', 'decisions', 'rules', 'recordLookups'
+        'conditions', 'decisions', 'rules', 'recordLookups', 'variables'
     ].includes(name)
 });
 
@@ -63,6 +63,9 @@ function buildVarObjectMap(flow) {
     for (const lookup of flow.recordLookups || []) {
         if (lookup.name && lookup.object) map[lookup.name] = lookup.object;
     }
+    for (const v of flow.variables || []) {
+        if (v.name && v.dataType === 'SObject' && v.objectType) map[v.name] = v.objectType;
+    }
     return map;
 }
 
@@ -117,9 +120,26 @@ function extractWrites(flow, start, triggerType) {
     }
 
     for (const create of flow.recordCreates || []) {
-        if (!create.object) continue;
-        for (const a of create.inputAssignments || []) {
-            if (a.field) writes.push({ field: a.field, object: create.object, element: 'recordCreate' });
+        // Pattern 1: inline inputAssignments with explicit object
+        if (create.object && create.inputAssignments && create.inputAssignments.length > 0) {
+            for (const a of create.inputAssignments) {
+                if (a.field) writes.push({ field: a.field, object: create.object, element: 'recordCreate' });
+            }
+            continue;
+        }
+
+        // Pattern 2: inputReference to a variable/collection — fields staged via assignments
+        if (create.inputReference) {
+            const object = varObjectMap[create.inputReference];
+            if (!object) continue;
+            // Collect staged fields from any variable of the same object type
+            for (const [varName, fields] of Object.entries(stagedFieldsMap)) {
+                if (varObjectMap[varName] === object) {
+                    for (const field of fields) {
+                        writes.push({ field, object, element: 'recordCreate' });
+                    }
+                }
+            }
         }
     }
 
@@ -148,9 +168,22 @@ function parseScreenFlow(filePath, flow) {
     }
 
     for (const create of flow.recordCreates || []) {
-        if (!create.object) continue;
-        for (const a of create.inputAssignments || []) {
-            if (a.field) writes.push({ field: a.field, object: create.object, element: 'recordCreate' });
+        if (create.object && create.inputAssignments && create.inputAssignments.length > 0) {
+            for (const a of create.inputAssignments) {
+                if (a.field) writes.push({ field: a.field, object: create.object, element: 'recordCreate' });
+            }
+            continue;
+        }
+        if (create.inputReference) {
+            const object = varObjectMap[create.inputReference];
+            if (!object) continue;
+            for (const [varName, fields] of Object.entries(stagedFieldsMap)) {
+                if (varObjectMap[varName] === object) {
+                    for (const field of fields) {
+                        writes.push({ field, object, element: 'recordCreate' });
+                    }
+                }
+            }
         }
     }
 
