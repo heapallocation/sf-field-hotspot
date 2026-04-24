@@ -5,7 +5,7 @@ const { XMLParser } = require('fast-xml-parser');
 const parser = new XMLParser({
     ignoreAttributes: false,
     isArray: (name) => [
-        'filters', 'inputAssignments', 'recordUpdates', 'assignments', 'assignmentItems',
+        'filters', 'inputAssignments', 'recordUpdates', 'recordCreates', 'assignments', 'assignmentItems',
         'conditions', 'decisions', 'rules', 'recordLookups'
     ].includes(name)
 });
@@ -106,15 +106,20 @@ function extractWrites(flow, start, triggerType) {
         const object = isCurrentRecord ? triggerObject : (varObjectMap[ref] || update.object || triggerObject);
 
         if (update.inputAssignments && update.inputAssignments.length > 0) {
-            // Inline field assignments on the recordUpdate
             for (const a of update.inputAssignments || []) {
                 if (a.field) writes.push({ field: a.field, object, element: 'recordUpdate' });
             }
         } else if (!isCurrentRecord && stagedFieldsMap[ref]) {
-            // Fields were staged via assignments, committed here
             for (const field of stagedFieldsMap[ref]) {
                 writes.push({ field, object, element: 'recordUpdate' });
             }
+        }
+    }
+
+    for (const create of flow.recordCreates || []) {
+        if (!create.object) continue;
+        for (const a of create.inputAssignments || []) {
+            if (a.field) writes.push({ field: a.field, object: create.object, element: 'recordCreate' });
         }
     }
 
@@ -128,7 +133,7 @@ function parseScreenFlow(filePath, flow) {
 
     for (const update of flow.recordUpdates || []) {
         const ref = update.inputReference || '';
-        const object = varObjectMap[ref];
+        const object = varObjectMap[ref] || update.object;
         if (!object) continue;
 
         if (update.inputAssignments && update.inputAssignments.length > 0) {
@@ -139,6 +144,13 @@ function parseScreenFlow(filePath, flow) {
             for (const field of stagedFieldsMap[ref]) {
                 writes.push({ field, object, element: 'screen' });
             }
+        }
+    }
+
+    for (const create of flow.recordCreates || []) {
+        if (!create.object) continue;
+        for (const a of create.inputAssignments || []) {
+            if (a.field) writes.push({ field: a.field, object: create.object, element: 'recordCreate' });
         }
     }
 
