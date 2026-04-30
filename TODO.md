@@ -40,6 +40,23 @@ Ingest Salesforce debug logs and build a runtime field dependency map.
   - In logs but not in XML = something outside flows is writing this field (Apex, Process Builder, workflow rules)
   - In both = confirmed live automation
 
+---
+
+## New tool: Permission Set Similarity Analyser
+
+Identify permission sets that could be merged in complex orgs.
+
+### Core idea
+- Calculate pairwise similarity scores across permission sets — shared object permissions, field permissions, Apex access, VF pages
+- Force-directed graph where proximity = similarity — clusters are merge candidates
+- Flag permission sets that are near-identical (likely cloned and slightly modified)
+- Flag unassigned permission sets (dead weight)
+
+### Why Tooling API not repo XML
+- Repo XML only contains what was explicitly retrieved — standard object permissions missing unless in package.xml
+- Tooling API queries live org data — `PermissionSet`, `ObjectPermissions`, `FieldPermissions`, `SetupEntityAccess` — full picture regardless of manifest
+- Same org-connected app architecture as sf-field-hotspot Salesforce app
+
 ### Log parsing
 - `FLOW_START_INTERVIEW_BEGIN` — flow started
 - `FLOW_ELEMENT_BEGIN` — element executed (recordUpdate, assignment etc.)
