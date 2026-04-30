@@ -16,7 +16,8 @@ function render() {
         return;
     }
 
-    const W = container.clientWidth, H = container.clientHeight;
+    const W = container.clientWidth;
+    const H = Math.max(container.clientHeight, Math.sqrt(data.length) * 120);
     const svg = d3.select(container).append('svg').attr('width', W).attr('height', H);
 
     const maxSize = d3.max(data, d => d.size) || 1;
@@ -31,9 +32,21 @@ function render() {
 
     for (let i = 0; i < 300; i++) sim.tick();
 
+    const tooltip = document.getElementById('tooltip');
+    const ttField = document.getElementById('tt-field');
+    const ttMeta = document.getElementById('tt-meta');
+
     const g = svg.selectAll('g').data(nodes).join('g')
         .attr('transform', d => `translate(${Math.max(d.r, Math.min(W - d.r, d.x))},${Math.max(d.r, Math.min(H - d.r, d.y))})`)
-        .on('click', (_, d) => showSidebar(d));
+        .on('click', (_, d) => showSidebar(d))
+        .on('mousemove', (event, d) => {
+            ttField.textContent = d.field;
+            ttMeta.textContent = `${d.object} · ${d.writerCount} writer${d.writerCount !== 1 ? 's' : ''} · ${d.readerCount} reader${d.readerCount !== 1 ? 's' : ''}`;
+            tooltip.style.left = (event.clientX + 14) + 'px';
+            tooltip.style.top = (event.clientY - 10) + 'px';
+            tooltip.classList.add('visible');
+        })
+        .on('mouseleave', () => tooltip.classList.remove('visible'));
 
     g.append('circle')
         .attr('r', d => d.r)
