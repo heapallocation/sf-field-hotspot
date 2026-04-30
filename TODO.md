@@ -6,6 +6,28 @@
 - [ ] Record Creation view (Tab 2) — directed graph of what automation creates which objects, parsed from `<recordCreates>` elements
 - [ ] Show trigger object next to flow names in sidebar — makes cross-object chains readable
 
+## New project: sf-field-hotspot Salesforce App (unmanaged package)
+
+Install directly into any Salesforce org — no local tooling needed.
+
+### Architecture
+- **Tooling API** — fetch flow definitions via `FlowDefinition` + `FlowVersion` queries, returns full flow XML
+- **Parsing in LWC JS** — reuse existing parse logic client-side, no Apex XML parsing needed, more versatile
+- **UI** — LWR React site or LWC app presenting the same bubble chart visualisation
+- **Flow links** — bubbles link directly to Flow Builder (`/builder_platform_interaction/flowBuilder.app?flowId=...`)
+- **Auth** — Named Credentials / Connected App for Tooling API access from LWC
+
+### Learning goals
+- Tooling API — querying flow metadata at runtime
+- Unmanaged packages — what goes in them, deployment, difference from managed
+- LWR React vs LWC — when each makes sense
+- Named Credentials / Connected Apps — Tooling API auth pattern from LWC
+
+### First step
+Verify Tooling API returns enough flow definition detail to parse the same patterns as the local XML parser.
+
+---
+
 ## New tool: sf-log-hotspot
 
 Ingest Salesforce debug logs and build a runtime field dependency map.
