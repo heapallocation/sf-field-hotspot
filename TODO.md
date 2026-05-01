@@ -46,10 +46,24 @@ Ingest Salesforce debug logs and build a runtime field dependency map.
 
 Identify permission sets that could be merged in complex orgs.
 
-### Why Tooling API not repo XML
-- Repo XML only contains what was explicitly retrieved — standard object permissions missing unless in package.xml
-- Tooling API queries live org data — `PermissionSet`, `ObjectPermissions`, `FieldPermissions`, `SetupEntityAccess` — full picture regardless of manifest
-- Same org-connected app architecture as sf-field-hotspot Salesforce app
+### Revised architecture — Metadata API + XML parsing (not Tooling/REST API)
+
+**The problem with repo XML**: only contains what was explicitly retrieved — standard object permissions missing unless every standard object is listed in `package.xml`. Two permission sets may appear similar just because both are missing the same standard object permissions.
+
+**The solution**: retrieve permission set XML directly from the org using a complete `package.xml` that includes all standard objects. One Metadata API retrieval call returns full permission set XML with all permissions — no SOQL, no pagination, no API call limits to worry about.
+
+**Pipeline:**
+1. **`sf-package-builder`** (see below) — generates a complete `package.xml` with all standard + custom objects via `EntityDefinition` query
+2. **`sf project retrieve`** — one command pulls all permission sets as complete XML files
+3. **Parse XML** — same approach as sf-field-hotspot, read local files
+4. **Similarity engine** — Sets + Jaccard, entirely offline once retrieved
+5. **Visualisation** — cluster + matrix view
+
+**Why this is better than API queries:**
+- One retrieve operation vs hundreds of paginated SOQL calls
+- No daily API limit concerns (Metadata API retrieval = very few calls)
+- Works offline after retrieval — shareable XML files
+- Full permissions including all standard objects guaranteed
 
 ### Data model
 Two shapes per permission set — computation and display:
@@ -105,6 +119,51 @@ Display shape is source of truth — Sets derived at computation time.
 - Rows sorted by most divergent first — differences surface at the top
 - Green = granted, empty = not granted
 - Classic overview → detail pattern: cluster for discovery, matrix for analysis
+
+---
+
+## New tool: sf-package-builder
+
+Generate a complete `package.xml` that includes all standard objects — prerequisite for retrieving complete permission sets and other metadata that depends on standard object coverage.
+
+### Problem
+`sf project retrieve` only returns what's in `package.xml`. Standard objects must be explicitly listed — nobody maintains this manually so they're always missing. Means permission set XML in repos is always incomplete.
+
+### Solution
+Query the org for all objects via `EntityDefinition`, generate a complete `package.xml`:
+
+```sql
+SELECT QualifiedApiName 
+FROM EntityDefinition 
+WHERE IsCustom = false 
+AND IsQueryable = true
+AND IsDeprecatedAndHidden = false
+```
+
+### Options
+- **CLI script** — point at an org alias, outputs `package.xml`. Same Node pattern as sf-field-hotspot. Fast to build, immediate value.
+- **VS Code extension** — right-click `package.xml` → "Add all standard objects", or command palette → "Generate complete package.xml". Builds on `salesforcedx-vscode` ecosystem, TypeScript/Node.
+
+### First version
+CLI script — prove the logic, then promote to VS Code extension.
+
+### Enables
+- Complete permission set retrieval (feeds sf-permset-analyser)
+- Any metadata that depends on standard object coverage
+
+---
+
+## New tool: sf-log-hotspot
+
+Ingest Salesforce debug logs and build a runtime field dependency map.
+
+### Views
+- Same bubble chart as sf-field-hotspot but weighted by frequency — fields that change most often in real transactions
+- Transaction view — which flows co-executed in the same save event, in what order
+- Comparison mode — diff static (XML) vs actual (logs):
+  - In XML but never in logs = dead automation
+  - In logs but not in XML = something outside flows is writing this field (Apex, Process Builder, workflow rules)
+  - In both = confirmed live automation
 
 ### Log parsing
 - `FLOW_START_INTERVIEW_BEGIN` — flow started
