@@ -5,6 +5,13 @@
 - [ ] Flow filter — show only fields touched by a selected flow
 - [ ] Record Creation view (Tab 2) — directed graph of what automation creates which objects, parsed from `<recordCreates>` elements
 - [ ] Show trigger object next to flow names in sidebar — makes cross-object chains readable
+- [ ] Permission Set view (Tab 3) — same bubble chart but for permission sets:
+  - Parse `.permissionset-meta.xml` files from repo alongside flows
+  - Bubbles = fields, sized by number of permission sets granting access
+  - Colour = read-only / read+edit / edit-only
+  - Click a field → see which permission sets grant what level of access
+  - Combined insight with flow view — fields written by many flows AND granted by many permission sets = central fields in the data model
+  - Note: repo XML may be incomplete for standard objects without a full package.xml (see sf-package-builder)
 
 ## New project: sf-field-hotspot Salesforce App (unmanaged package)
 
